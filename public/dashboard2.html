@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HALF BLOOD PRINCE</title>
+    <link rel="stylesheet" href="dashboard2.css" />
+    <link rel="stylesheet" href="sidebar.css" />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.10.0/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css"
+      type="text/css"
+    />
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js'></script>
+    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css' type='text/css' />
+    <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+    <link 
+        rel="stylesheet" 
+        href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.0/mapbox-gl-directions.css"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <div class="sidebar" id="sidebar">
+        <div class="logo">
+          <img src="logo.ico" alt="FoodShare" />
+          <h1>Food<b style="color: rgb(239, 107, 13)">Connect</b></h1>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          <button class="toggle-btn" id="toggleBtn">X</button>
+        </div>
+        <div class="menu">
+          <a href="dashboard2.html" class="menu-item active">
+            <div class="icon dashboard-icon" onclick="openSidebar()"></div>
+            <span class="menu-text">Dashboard</span>
+          </a>
+        </div>
+        <a href="notification.html" class="menu-item">
+          <div class="icon alert-icon" onclick="openSidebar()"></div>
+          <span class="menu-text">Notifications</span>
+        </a>
+        <a href="request.html" class="menu-item">
+          <div class="icon alert-icon" onclick="openSidebar()"></div>
+          <span class="menu-text">Requests</span>
+        </a>
+        <a href="stats.html" class="menu-item">
+          <div class="icon stats-icon" onclick="openSidebar()"></div>
+          <span class="menu-text">Stats</span>
+        </a>
+        <a href="settings.html" class="menu-item">
+          <div class="icon settings-icon" onclick="openSidebar()"></div>
+          <span class="menu-text">Settings</span>
+        </a>
+      </div>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card" id="totalFood">
+            <h3>Total Food Available</h3>
+            <div class="stat-value">2,450 kg</div>
+            <div class="stat-change positive">↑ 12% from last week</div>
+          </div>
+          <div class="stat-card" id="activeDonors">
+            <h3>Active Donors</h3>
+            <div class="stat-value">128</div>
+            <div class="stat-change">↑ 4 new today</div>
+          </div>
+          <div class="stat-card" id="pendingPickups">
+            <h3>Pending Pickups</h3>
+            <div class="stat-value">15</div>
+            <div class="stat-change warning">Within 24 hours</div>
+          </div>
+          <div class="stat-card" id="criticalItems">
+            <h3>Critical Items</h3>
+            <div class="stat-value">8</div>
+            <div class="stat-change critical">Expiring soon</div>
+          </div>
+        </div>
+
+        <!-- Map and Food Items Section -->
+        <div class="map-section">
+          <h2>Food tracking</h2>
+          <div id="map" style="width: 100%; height: 500px; border-radius: 8px;"></div>
+        </div>
+        <!-- Replace the existing controls-container div with this improved version -->
+        <div class="controls-container">
+          <div class="control-panels-wrapper">
+            <!-- Map Controls Panel -->
+            <div class="control-panel">
+              <h3>Map Controls</h3>
+              <div class="filter-controls">
+                <label>
+                    <input type="checkbox" id="pickupFilter" checked onchange="filterMarkers('red', this.checked)">
+                    Food Pickup Points
+                </label>
+                <label>
+                    <input type="checkbox" id="deliveryFilter" checked onchange="filterMarkers('green', this.checked)">
+                    Food Delivery Points
+                </label>
+              </div>
+              
+            </div>
+        
+            <!-- Route Planning Panel -->
+            <div class="control-panel">
+              <h3>Route Planning</h3>
+              <div class="route-selectors">
+                <select id="startPoint">
+                  <option value="">Select starting point</option>
+                </select>
+                <select id="endPoint">
+                  <option value="">Select destination</option>
+                </select>
+              </div>
+              <div class="route-actions">
+                <button class="btn btn-primary" onclick="calculateRoute()">Calculate Route</button>
+                <button class="btn btn-secondary" onclick="optimizeRoute()">Optimize Route</button>
+                <button class="btn btn-danger" onclick="clearRoute()">Clear</button>
+              </div>
+              <div class="route-info">
+                <p>Distance: <span id="routeDistance">-</span></p>
+                <p>Duration: <span id="routeDuration">-</span></p>
+              </div>
+            </div>
+        
+            <!-- Data Export Panel -->
+            <div class="control-panel">
+              <h3>Data Management</h3>
+              <div class="export-actions">
+                <button class="btn btn-secondary" onclick="exportToCSV()">
+                  <i class="export-icon"></i> Export CSV
+                </button>
+                <button class="btn btn-secondary" onclick="exportToJSON()">
+                  <i class="export-icon"></i> Export JSON
+                </button>
+              </div>
+              <div class="stats-summary">
+                <div class="stat-row">
+                  <span>Active Points:</span>
+                  <span id="activePoints">0</span>
+                </div>
+                <div class="stat-row">
+                  <span>Total Routes:</span>
+                  <span id="totalRoutes">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </main>
+    </div>
+   
+    <script src="dashboard2.js"></script>
+    <script src="sidebar.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.0/mapbox-gl-directions.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  </body>
+</html>
