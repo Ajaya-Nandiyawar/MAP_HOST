@@ -93,13 +93,37 @@
         <div class="controls-container">
           <!-- Add this new control panel to your HTML (place it within .controls-container) -->
 <div class="control-panel">
-  <h3>Add New Location</h3>
+  <h3>Create Request</h3>
   <div class="location-form">
     <input 
       type="text" 
       id="locationName" 
-      placeholder="Enter location name"
+      placeholder="Location Name"
       class="form-input"
+      required
+    >
+    <input 
+      type="text" 
+      id="foodItem" 
+      placeholder="Food Item Name"
+      class="form-input"
+      required
+    >
+    <input 
+      type="number" 
+      id="quantity" 
+      placeholder="Quantity (kg)"
+      class="form-input"
+      min="1"
+      required
+    >
+    <input 
+      type="tel" 
+      id="contact" 
+      placeholder="Contact Number (+91...)"
+      class="form-input"
+      pattern="^(\+91|0)?[7-9]\d{9}$"
+      required
     >
     <select id="locationType" class="form-select">
       <option value="red">Food Pickup Point</option>

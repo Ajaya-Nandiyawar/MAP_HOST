@@ -9,7 +9,7 @@ const map = new mapboxgl.Map({
 });
 
 // Location data
-const locations = [
+let locations = JSON.parse(localStorage.getItem('foodLocations')) || [
   {
     position: { lat: 18.5912, lng: 73.89 },
     title: "Hadapsar Food Pickup",
@@ -74,7 +74,7 @@ const locations = [
     type: "green",
   },
   {
-    position: { lat: 18.4629, lng: 73.8524 },
+    position: { lat: 4629, lng: 73.8524 },
     title: "Viman Nagar Food Pickup",
     description: "Dosa, Sambhar, and Coconut Chutney",
     quantity: "13 containers",
@@ -159,9 +159,10 @@ function addMarkers(locations) {
         const popup = new mapboxgl.Popup({ offset: 25 })
             .setHTML(`
                 <h3>${location.title}</h3>
-                <p>${location.description}</p>
-                <p>Quantity: ${location.quantity}</p>
-                <p>Type: ${location.type === 'red' ? 'Pickup Point' : 'Delivery Point'}</p>
+                <p><strong>Food Item:</strong> ${location.foodItem || location.description}</p>
+                <p><strong>Quantity:</strong> ${location.quantity}</p>
+                ${location.contact ? `<p><strong>Contact:</strong> <a href="tel:${location.contact}">${location.contact}</a></p>` : ''}
+                <p><strong>Type:</strong> ${location.type === 'red' ? 'Pickup Point' : 'Delivery Point'}</p>
             `);
 
         // Create and store marker reference
@@ -325,6 +326,7 @@ function calculateRoute() {
     });
 }
 
+// Replace the existing optimizeRoute function with this updated version
 function optimizeRoute() {
     const startPoint = JSON.parse(document.getElementById('startPoint').value);
     if (!startPoint) {
@@ -332,69 +334,100 @@ function optimizeRoute() {
         return;
     }
 
-    // Get all delivery points (green markers)
-    const deliveryPoints = locations.filter(loc => loc.type === 'green');
-    
-    // Use turf.js to find the optimal route
-    const coordinates = deliveryPoints.map(point => 
-        turf.point([point.position.lng, point.position.lat])
-    );
-    
-    const start = turf.point([startPoint.lng, startPoint.lat]);
-    let optimizedRoute = [start];
-    let remaining = [...coordinates];
+    try {
+        // Remove existing route if any
+        if (currentRoute) {
+            currentRoute.remove();
+        }
 
-    while (remaining.length > 0) {
-        const current = optimizedRoute[optimizedRoute.length - 1];
-        let nearest = turf.nearest(current, turf.featureCollection(remaining));
-        optimizedRoute.push(nearest);
-        remaining = remaining.filter(point => 
-            point.geometry.coordinates !== nearest.geometry.coordinates
-        );
-    }
+        // Get all delivery points (green markers)
+        const deliveryPoints = locations.filter(loc => loc.type === 'green');
+        
+        if (deliveryPoints.length === 0) {
+            alert('No delivery points found to optimize');
+            return;
+        }
 
-    // Draw the optimized route
-    if (currentRoute) {
-        currentRoute.remove();
-    }
+        // Convert points to turf features
+        const points = deliveryPoints.map(point => ({
+            type: 'Feature',
+            properties: {},
+            geometry: {
+                type: 'Point',
+                coordinates: [point.position.lng, point.position.lat]
+            }
+        }));
 
-    const routeCoordinates = optimizedRoute.map(point => point.geometry.coordinates);
-    
-    map.addLayer({
-        id: 'optimized-route',
-        type: 'line',
-        source: {
-            type: 'geojson',
-            data: {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: routeCoordinates
+        // Create a feature collection
+        const collection = turf.featureCollection(points);
+
+        // Starting point
+        const origin = turf.point([startPoint.lng, startPoint.lat]);
+
+        // Calculate optimized route
+        let optimizedRoute = [origin];
+        let remaining = [...points];
+
+        while (remaining.length > 0) {
+            const currentPoint = optimizedRoute[optimizedRoute.length - 1];
+            const nearest = turf.nearest(currentPoint, turf.featureCollection(remaining));
+            optimizedRoute.push(nearest);
+            remaining = remaining.filter(point => 
+                point.geometry.coordinates[0] !== nearest.geometry.coordinates[0] ||
+                point.geometry.coordinates[1] !== nearest.geometry.coordinates[1]
+            );
+        }
+
+        // Extract coordinates for the route
+        const routeCoordinates = optimizedRoute.map(point => point.geometry.coordinates);
+
+        // Add the route to the map
+        map.addLayer({
+            id: 'optimized-route',
+            type: 'line',
+            source: {
+                type: 'geojson',
+                data: {
+                    type: 'Feature',
+                    properties: {},
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: routeCoordinates
+                    }
+                }
+            },
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': '#3887be',
+                'line-width': 5,
+                'line-opacity': 0.75
+            }
+        });
+
+        // Store current route for later removal
+        currentRoute = {
+            remove: () => {
+                if (map.getLayer('optimized-route')) {
+                    map.removeLayer('optimized-route');
+                }
+                if (map.getSource('optimized-route')) {
+                    map.removeSource('optimized-route');
                 }
             }
-        },
-        paint: {
-            'line-color': '#3887be',
-            'line-width': 5,
-            'line-opacity': 0.75
-        }
-    });
+        };
 
-    currentRoute = {
-        remove: () => {
-            if (map.getLayer('optimized-route')) {
-                map.removeLayer('optimized-route');
-                map.removeSource('optimized-route');
-            }
-        }
-    };
+        // Fit map to show the entire route
+        const bounds = new mapboxgl.LngLatBounds();
+        routeCoordinates.forEach(coord => bounds.extend(coord));
+        map.fitBounds(bounds, { padding: 50 });
 
-    // Fit map to show entire route
-    const bounds = routeCoordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-    }, new mapboxgl.LngLatBounds(routeCoordinates[0], routeCoordinates[0]));
-
-    map.fitBounds(bounds, { padding: 50 });
+    } catch (error) {
+        console.error('Error in route optimization:', error);
+        alert('An error occurred while optimizing the route. Please try again.');
+    }
 }
 
 function clearRoute() {
@@ -468,27 +501,42 @@ function enableLocationPlacement() {
 }
 
 function saveNewLocation() {
-  if (!newLocation) {
-    alert('Please set location position first');
-    return;
-  }
-  
-  locations.push(newLocation);
-  addMarkers(locations);
-  populateDropdowns(locations);
-  
-  // Reset form
-  document.getElementById('locationName').value = '';
-  document.getElementById('coordinateStatus').textContent = 
-    'Location added successfully!';
-  newLocation = null;
-  isPlacing = false;
-  
-  // Zoom to new location
-  map.flyTo({
-    center: [newLocation.position.lng, newLocation.position.lat],
-    zoom: 14
-  });
+    if (!newLocation) {
+        alert('Please set location position first');
+        return;
+    }
+    
+    // Get additional fields
+    newLocation.foodItem = document.getElementById('foodItem').value;
+    newLocation.quantity = document.getElementById('quantity').value + ' kg';
+    newLocation.contact = document.getElementById('contact').value;
+
+    // Validate contact number
+    const phonePattern = /^(\+91|0)?[7-9]\d{9}$/;
+    if (!phonePattern.test(newLocation.contact)) {
+        alert('Please enter a valid Indian phone number');
+        return;
+    }
+
+    locations.push(newLocation);
+    saveLocationsToStorage(); // Save to localStorage
+    addMarkers(locations);
+    populateDropdowns(locations);
+    
+    // Reset form
+    document.getElementById('locationName').value = '';
+    document.getElementById('foodItem').value = '';
+    document.getElementById('quantity').value = '';
+    document.getElementById('contact').value = '';
+    document.getElementById('coordinateStatus').textContent = 
+        'Location added successfully!';
+    newLocation = null;
+    isPlacing = false;
+    
+    map.flyTo({
+        center: [newLocation.position.lng, newLocation.position.lat],
+        zoom: 14
+    });
 }
 
 function updateCoordinateStatus(coords) {
@@ -498,3 +546,28 @@ function updateCoordinateStatus(coords) {
     Longitude: ${coords[0].toFixed(4)}
   `;
 }
+
+function saveLocationsToStorage() {
+    localStorage.setItem('foodLocations', JSON.stringify(locations));
+}
+
+// Add phone number validation
+document.addEventListener('DOMContentLoaded', () => {
+    const contactInput = document.getElementById('contact');
+    if (contactInput) {
+        contactInput.addEventListener('input', function(e) {
+            const pattern = /^(\+91|0)?[7-9]\d{9}$/;
+            if (!pattern.test(e.target.value)) {
+                this.setCustomValidity('Please enter a valid Indian phone number');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    }
+
+    // Initialize markers and dropdowns from localStorage
+    if (locations.length > 0) {
+        addMarkers(locations);
+        populateDropdowns(locations);
+    }
+});
