@@ -409,3 +409,92 @@ function clearRoute() {
     document.getElementById('routeDistance').textContent = '-';
     document.getElementById('routeDuration').textContent = '-';
 }
+
+
+// recent enhnacement
+// Add these variables to your JavaScript
+let newLocation = null;
+let isPlacing = false;
+
+// Initialize geocoder for location search
+const geocoder = new MapboxGeocoder({
+  accessToken: mapboxgl.accessToken,
+  mapboxgl: mapboxgl,
+  marker: false,
+  placeholder: 'Search address or coordinates',
+  bbox: [73.7, 18.4, 74.0, 18.7]
+});
+
+// Add geocoder to the form
+document.getElementById('locationGeocoder').appendChild(geocoder.onAdd(map));
+
+// Handle geocoder result
+geocoder.on('result', (e) => {
+  if (isPlacing) {
+    newLocation = {
+      position: { lat: e.result.center[1], lng: e.result.center[0] },
+      title: document.getElementById('locationName').value,
+      description: 'Custom food location',
+      quantity: '0 containers',
+      type: document.getElementById('locationType').value
+    };
+    updateCoordinateStatus(e.result.center);
+  }
+});
+
+// Handle map clicks for manual placement
+map.on('click', (e) => {
+  if (isPlacing) {
+    newLocation = {
+      position: { lat: e.lngLat.lat, lng: e.lngLat.lng },
+      title: document.getElementById('locationName').value,
+      description: 'Custom food location',
+      quantity: '0 containers',
+      type: document.getElementById('locationType').value
+    };
+    updateCoordinateStatus([e.lngLat.lng, e.lngLat.lat]);
+  }
+});
+
+function enableLocationPlacement() {
+  const name = document.getElementById('locationName').value;
+  if (!name) {
+    alert('Please enter a location name');
+    return;
+  }
+  isPlacing = true;
+  document.getElementById('coordinateStatus').textContent = 
+    'Search above or click map to set position';
+}
+
+function saveNewLocation() {
+  if (!newLocation) {
+    alert('Please set location position first');
+    return;
+  }
+  
+  locations.push(newLocation);
+  addMarkers(locations);
+  populateDropdowns(locations);
+  
+  // Reset form
+  document.getElementById('locationName').value = '';
+  document.getElementById('coordinateStatus').textContent = 
+    'Location added successfully!';
+  newLocation = null;
+  isPlacing = false;
+  
+  // Zoom to new location
+  map.flyTo({
+    center: [newLocation.position.lng, newLocation.position.lat],
+    zoom: 14
+  });
+}
+
+function updateCoordinateStatus(coords) {
+  document.getElementById('coordinateStatus').innerHTML = `
+    Position set: <br>
+    Latitude: ${coords[1].toFixed(4)}<br>
+    Longitude: ${coords[0].toFixed(4)}
+  `;
+}

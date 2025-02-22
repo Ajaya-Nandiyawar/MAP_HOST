@@ -91,6 +91,30 @@
         </div>
         <!-- Replace the existing controls-container div with this improved version -->
         <div class="controls-container">
+          <!-- Add this new control panel to your HTML (place it within .controls-container) -->
+<div class="control-panel">
+  <h3>Add New Location</h3>
+  <div class="location-form">
+    <input 
+      type="text" 
+      id="locationName" 
+      placeholder="Enter location name"
+      class="form-input"
+    >
+    <select id="locationType" class="form-select">
+      <option value="red">Food Pickup Point</option>
+      <option value="green">Food Delivery Point</option>
+    </select>
+    <div id="locationGeocoder" class="geocoder-container"></div>
+    <button onclick="enableLocationPlacement()" class="btn btn-secondary">
+      Set Location on Map
+    </button>
+    <div id="coordinateStatus" class="status-message"></div>
+    <button onclick="saveNewLocation()" class="btn btn-primary">
+      Save Location
+    </button>
+  </div>
+</div>
           <div class="control-panels-wrapper">
             <!-- Map Controls Panel -->
             <div class="control-panel">
